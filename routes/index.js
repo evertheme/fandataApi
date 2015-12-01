@@ -8,7 +8,76 @@ router.get('/', function(req, res, next) {
   res.render('index', { title: 'Express' });
 });
 
-// $ curl -X GET localhost:3210/api/v1/player/00-0019596
+// http://localhost:3210/api/v1/schedule/1448328306578/1448933106578
+router.get('/api/v1/schedule/', function(req, res) {
+    res.header("Access-Control-Allow-Origin", "http://localhost:3000");
+    res.header("Access-Control-Allow-Headers", "X-Requested-With");
+    var results = [];
+    /*
+    var t = new Date().getDate() + (2 - new Date().getDay() - 1);
+    var s = new Date();
+    var e = new Date();
+    s.setDate(t);
+    console.log(s.getDay());
+    e.setDate(s.getDate()+7);
+    s.setHours(s.getHours() - 6);
+    e.setHours(e.getHours() - 6);
+    console.log(s);
+    console.log(e);
+    var qry = [
+        "SELECT",
+        "  gsis_id,",
+        "  away_team,",
+        "  home_team,",
+        "  start_time ",
+        "FROM",
+        "  game ",
+        "WHERE",
+        "  start_time > timestamp '" + s.toUTCString() + "' AND ",
+        "  start_time < timestamp '" + e.toUTCString() + "' ",
+        "ORDER BY",
+        "  start_time ASC;"
+    ].join("");
+    */
+    var qry = [
+        "SELECT ",
+        "  gsis_id, ",
+        "  away_team, ",
+        "  home_team, ",
+        "  start_time ",
+        "FROM ",
+        "  game ",
+        "WHERE ",
+        "  start_time > current_date - cast(extract(dow from current_date) as int) + 2 AND ",
+        "  start_time < current_date - cast(extract(dow from current_date) as int) + 9 ",
+        "ORDER BY ",
+        "  start_time ASC; "
+    ].join("");
+    //console.log(qry);
+    // Get a Postgres client from the connection pool
+    pg.connect(connectionString, function(err, client, done) {
+        // Handle connection errors
+        if(err) {
+          done();
+          console.log(err);
+          return res.status(500).json({ success: false, data: err});
+        }
+        // SQL Query > Select Data
+        var query = client.query(qry);
+        // Stream results back one row at a time
+        query.on('row', function(row) {
+            //console.log(row);
+            results.push(row);
+        });
+        // After all data is returned, close connection and return results
+        query.on('end', function() {
+            done();
+            return res.json(results);
+        });
+    });
+});
+
+// http://localhost:3210/api/v1/schedule/1448328306578/1448933106578
 router.get('/api/v1/schedule/:startDate/:endDate', function(req, res) {
     res.header("Access-Control-Allow-Origin", "http://localhost:3000");
     res.header("Access-Control-Allow-Headers", "X-Requested-With");
