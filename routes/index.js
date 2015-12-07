@@ -262,5 +262,77 @@ router.get('/api/v1/player/:playerId/matchup/:gameId/:fromId', function(req, res
 
 });
 
+router.get('/api/v1/stats/:year/:week', function(req, res) {
+    res.header("Access-Control-Allow-Origin", "http://localhost:3000");
+    res.header("Access-Control-Allow-Headers", "X-Requested-With");
+    var results  = [];
+    var _year = req.params.year;
+    var _week = req.params.week;
+
+    // Get a Postgres client from the connection pool
+    pg.connect(connectionString, function(err, client, done) {
+        // Handle connection errors
+        if(err) {
+          done();
+          console.log(err);
+          return res.status(500).json({ success: false, data: err});
+        }
+        var rowkeys = ['gsis_id','player_id','salary_dk','salary_fd','games','pts_dk_last_1','pts_dk_last_3','pts_dk_last_5','pts_dk_avg','value_dk','pts_fd_last_1','pts_fd_last_3','pts_fd_last_5','pts_fd_avg','value_fd'];
+        // SQL Query > Select Data
+        var query = client.query("SELECT fn_player_agg_stats_points_salary('"+_year+"','"+_week+"');");
+        // Stream results back one row at a time
+        query.on('row', function(row) {
+            var rowvals = row.fn_player_agg_stats_points_salary.replace('(', '').replace(')', '').split(',');
+            var rowjson = {};
+            for (var i=0; i<rowvals.length; i++) {
+              rowjson[rowkeys[i]] = rowvals[i];
+            }
+            //console.log(rowjson);
+            results.push(rowjson);
+            //results.push(row);
+        });
+
+        // After all data is returned, close connection and return results
+        query.on('end', function() {
+            done();
+            return res.json(results);
+            //return res.json(rowjson);
+        });
+
+    });
+
+});
+
+router.get('/api/v1/json/stats/:year/:week', function(req, res) {
+    res.header("Access-Control-Allow-Origin", "http://localhost:3000");
+    res.header("Access-Control-Allow-Headers", "X-Requested-With");
+    var results  = [];
+    var _year = req.params.year;
+    var _week = req.params.week;
+
+    // Get a Postgres client from the connection pool
+    pg.connect(connectionString, function(err, client, done) {
+        // Handle connection errors
+        if(err) {
+          done();
+          console.log(err);
+          return res.status(500).json({ success: false, data: err});
+        }
+         // SQL Query > Select Data
+        var query = client.query("SELECT doc from jsonb_player_stats_weekly where doc_id = '"+_year+"-"+_week+"';");
+        // Stream results back one row at a time
+        query.on('row', function(row) {
+            console.log(row);
+            results.push(row);
+        });
+        // After all data is returned, close connection and return results
+        query.on('end', function() {
+            done();
+            return res.json(results[0]['doc']);
+        });
+    });
+
+});
+
 
 module.exports = router;
