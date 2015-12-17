@@ -1,7 +1,8 @@
-var express = require('express');
-var router = express.Router();
-var pg = require('pg');
-var connectionString = process.env.DATABASE_URL || 'postgres://postgres:bCr3at1v32@localhost:5432/nfldb';
+var express  = require('express');
+var router   = express.Router();
+var pg       = require('pg');
+var apiquery = require('../query/query.js');
+var connStr  = process.env.DATABASE_URL || 'postgres://postgres:bCr3at1v32@localhost:5432/nfldb';
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
@@ -39,23 +40,8 @@ router.get('/api/v1/schedule/', function(req, res) {
         "  start_time ASC;"
     ].join("");
     */
-    var qry = [
-        "SELECT ",
-        "  gsis_id, ",
-        "  away_team, ",
-        "  home_team, ",
-        "  start_time ",
-        "FROM ",
-        "  game ",
-        "WHERE ",
-        "  start_time > current_date - cast(extract(dow from current_date) as int) + 2 AND ",
-        "  start_time < current_date - cast(extract(dow from current_date) as int) + 9 ",
-        "ORDER BY ",
-        "  start_time ASC; "
-    ].join("");
-    //console.log(qry);
-    // Get a Postgres client from the connection pool
-    pg.connect(connectionString, function(err, client, done) {
+    var qry = apiquery.getGamesCurrentWeek();
+    pg.connect(connStr, function(err, client, done) {
         // Handle connection errors
         if(err) {
           done();
@@ -87,23 +73,8 @@ router.get('/api/v1/schedule/:startDate/:endDate', function(req, res) {
     var endDate = Number(req.params.endDate);
     var dt_1 = new Date(startDate);
     var dt_2 = new Date(endDate);
-    var qry = [
-        "SELECT",
-        "  gsis_id,",
-        "  away_team,",
-        "  home_team,",
-        "  start_time ",
-        "FROM",
-        "  game ",
-        "WHERE",
-        "  start_time > timestamp '" + dt_1.toUTCString() + "' AND ",
-        "  start_time < timestamp '" + dt_2.toUTCString() + "' ",
-        "ORDER BY",
-        "  start_time ASC;"
-    ].join("");
-    console.log(qry);
-    // Get a Postgres client from the connection pool
-    pg.connect(connectionString, function(err, client, done) {
+    var qry = apiquery.getGamesBetweenDates(dt_1, dt_2);
+    pg.connect(connStr, function(err, client, done) {
         // Handle connection errors
         if(err) {
           done();
@@ -132,7 +103,7 @@ router.get('/api/v1/player/:playerId', function(req, res) {
     var results = [];
     var playerId = req.params.playerId;
     // Get a Postgres client from the connection pool
-    pg.connect(connectionString, function(err, client, done) {
+    pg.connect(connStr, function(err, client, done) {
         // Handle connection errors
         if(err) {
           done();
@@ -160,35 +131,8 @@ router.get('/api/v1/player/:playerId/games/', function(req, res) {
     res.header("Access-Control-Allow-Headers", "X-Requested-With");
     var results = [];
     var playerId = req.params.playerId;
-    var qry = [
-        "SELECT",
-        "  player.player_id,",
-        "  game.gsis_id,",
-        "  game.away_team,",
-        "  game.home_team,",
-        "  game.season_year,",
-        "  game.week,",
-        "  sum(play_player.passing_att) as pass_att,",
-        "  sum(play_player.receiving_tar) as rece_tar,",
-        "  sum(play_player.rushing_att) as rush_att ",
-        "FROM",
-        "  game,",
-        "  player,",
-        "  play_player ",
-        "WHERE",
-        "  player.player_id = play_player.player_id AND ",
-        "  player.player_id = '" + playerId + "' AND",
-        "  play_player.gsis_id = game.gsis_id AND",
-        "  game.season_type = 'Regular' ",
-        "GROUP BY",
-        "  player.player_id,",
-        "  game.gsis_id ",
-        "ORDER BY",
-        "  game.gsis_id DESC;"
-    ].join("");
-    console.log(qry);
-    // Get a Postgres client from the connection pool
-    pg.connect(connectionString, function(err, client, done) {
+    var qry = apiquery.getGamesByPlayerId(playerId);
+    pg.connect(connStr, function(err, client, done) {
         // Handle connection errors
         if(err) {
           done();
@@ -219,7 +163,7 @@ router.get('/api/v1/player/:playerId/matchup/:gameId/:fromId', function(req, res
     var fromId   = req.params.fromId;
 
     // Get a Postgres client from the connection pool
-    pg.connect(connectionString, function(err, client, done) {
+    pg.connect(connStr, function(err, client, done) {
         // Handle connection errors
         if(err) {
           done();
@@ -270,7 +214,7 @@ router.get('/api/v1/stats/:year/:week', function(req, res) {
     var _week = req.params.week;
 
     // Get a Postgres client from the connection pool
-    pg.connect(connectionString, function(err, client, done) {
+    pg.connect(connStr, function(err, client, done) {
         // Handle connection errors
         if(err) {
           done();
@@ -311,7 +255,7 @@ router.get('/api/v1/json/stats/:year/:week', function(req, res) {
     var _week = req.params.week;
 
     // Get a Postgres client from the connection pool
-    pg.connect(connectionString, function(err, client, done) {
+    pg.connect(connStr, function(err, client, done) {
         // Handle connection errors
         if(err) {
           done();
